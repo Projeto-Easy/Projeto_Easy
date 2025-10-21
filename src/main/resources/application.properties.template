@@ -1,1 +1,4 @@
 spring.application.name=chatboteasy
+whats.api.token=tokenAPI
+whats.phone.number.id=idNum
+meta.verify.token=tokenWebhook
