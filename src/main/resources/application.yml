@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: chatboteasy
+
+  datasource:
+    url: jdbc:mysql://0.tcp.sa.ngrok.io:15660/Easy
+    username: root
+    password: 153972468erTyui@
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+whats:
+  api:
+    token: tokenAPI
+  phone:
+    number:
+      id: idNum
+
+meta:
+  verify:
+    token: tokenWebhook
