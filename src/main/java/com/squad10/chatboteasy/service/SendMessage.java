@@ -39,7 +39,7 @@ public class SendMessage {
 
         try {
             ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-            System.out.println(response.getBody());
+            System.out.printf("Resposta enviada para : %s\n", to);
         } catch (Exception e) {
             System.out.println("Erro ao enviar mensagem: " + e);
         }

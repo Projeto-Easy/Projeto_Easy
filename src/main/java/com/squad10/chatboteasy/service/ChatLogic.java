@@ -1,7 +1,7 @@
 package com.squad10.chatboteasy.service;
 
-import com.squad10.chatboteasy.dto.IncomingMessage;
-import com.squad10.chatboteasy.dto.IncomingMessage.Message;
+import com.squad10.chatboteasy.repository.NumeroCadastradoRepository;
+import com.squad10.chatboteasy.tables.NumeroCadastrado;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -10,39 +10,26 @@ import org.springframework.stereotype.Service;
 public class ChatLogic {
 
     private final SendMessage sendMessage;
+    private final NumeroCadastradoRepository numRepo;
 
-    public void processIncomingMessage(IncomingMessage payload) {
+    public void chatFlux (String from, String mensagem, String tipo){
 
-        for(var entry : payload.getEntry()) {
-            for(var change : entry.getChanges()) {
-                if (change.getValue().getMessages() == null) continue;
-                
-                for(Message message : change.getValue().getMessages()){
-                    if (change.getValue().getMessages() == null) continue;
+        if(numRepo.existsByNumero(from)){
 
-                    String from = message.getFrom();
+            if (tipo.equals("text")){
+                handleTextMessage(from, mensagem);
+            } else handleNonTextMessage(from, mensagem);
 
-                    if ("text".equals(message.getType())) {
-                        String conteudo = message.getText().getBody();
-
-                        handleTextMessage(from, conteudo);
-                    } else {
-                        handleNonTextMessage(from);
-                    }
-
-                }
-
-            }
         }
     }
 
-    public void handleTextMessage(String from, String conteudo) {
-        String resposta = "Mensagem recebida: " + conteudo;
+    public void handleTextMessage(String from, String mensagem) {
+        String resposta = "Mensagem recebida: " + mensagem;
         sendMessage.sendMessage(from, resposta);
     }
 
-    public void handleNonTextMessage(String from) {
-        String resposta = "Desculpe, só consigo receber mensagens de texto por enquanto.";
+    public void handleNonTextMessage(String from, String mensagem) {
+        String resposta = String.format("Mensagems do tipo %s não são suportadas.", mensagem);
         sendMessage.sendMessage(from, resposta);
     }
 
