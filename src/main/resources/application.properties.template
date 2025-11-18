@@ -1,7 +1,8 @@
 spring.application.name=chatboteasy
+meta.verify.token=tokenWebhook
+
 whats.api.token=tokenAPI
 whats.phone.number.id=idNum
-meta.verify.token=tokenWebhook
 
 spring.datasource.url=jdbc:mysql://localhost:3306/easydb?createDatabaseIfNotExist=true
 spring.jpa.hibernate.ddl-auto=update

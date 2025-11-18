@@ -1,0 +1,13 @@
+package com.squad10.chatboteasy.enums;
+
+public enum EtapaFluxo {
+    INICIO,
+    MENU_PRINCIPAL,
+    RESUMO_MES,
+    CONTAS_RECEBER_TIPO,
+    CONTAS_RECEBER_LISTA,
+    CONTAS_PAGAR_TIPO,
+    CONTAS_PAGAR_LISTA,
+    FLUXO_CAIXA_PERIODO,
+    SAIR
+}
