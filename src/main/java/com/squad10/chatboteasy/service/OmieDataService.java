@@ -4,6 +4,8 @@ import com.squad10.chatboteasy.client.OmieApiClient;
 import com.squad10.chatboteasy.dto.omie.OmieCategoriaRaw;
 import com.squad10.chatboteasy.dto.omie.OmieMoviment;
 import com.squad10.chatboteasy.model.MovimentoEnriquecido;
+import com.squad10.chatboteasy.tables.Empresa;
+import com.squad10.chatboteasy.tables.NumeroCadastrado;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -192,4 +194,20 @@ public com.squad10.chatboteasy.dto.report.WeeklyReportDTO gerarRelatorio(
             .itens(itens) // remova se não quiser retornar itens
             .build();
 }
-}
+
+    public com.squad10.chatboteasy.dto.report.WeeklyReportDTO gerarRelatorioPorContato(NumeroCadastrado contato,
+                                                                                       LocalDate dataInicio, LocalDate dataFim, boolean detalhado) {
+        Empresa empresa = contato.getEmpresa();
+
+        if (empresa == null || empresa.getOmieAppKey() == null) {
+            throw new RuntimeException("Empresa não configurada para este número");
+        }
+
+        return gerarRelatorio(
+                empresa.getOmieAppKey(),
+                empresa.getOmieAppSecret(),
+                dataInicio,
+                dataFim,
+                detalhado
+        );
+}}
