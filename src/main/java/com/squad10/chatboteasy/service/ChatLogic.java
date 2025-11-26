@@ -38,7 +38,8 @@ public class ChatLogic {
         }
 
         // 3. Primeiro contato: define etapa inicial
-        if (contato.getEtapaFluxo() == null
+        if (
+                contato.getEtapaFluxo() == null
                 || contato.getEtapaFluxo().isBlank()
                 || (contato.getUltimoContato() != null
                 && contato.getUltimoContato().isBefore(LocalDateTime.now().minusMinutes(5)))) {
@@ -54,14 +55,15 @@ public class ChatLogic {
             case INICIO -> {
                 sendMessage.sendMessage(from, """
                     Olá! Sou seu assistente financeiro da Easy.
+                    Estou aqui para te ajudar no que precisar.
                     
-                    O que você gostaria de consultar hoje?
+                    O que você quer ver agora?
                     
-                    1. Resumo financeiro do mês
-                    2. Contas a receber
-                    3. Contas a pagar
-                    4. Fluxo de caixa
-                    5. Sair
+                       1. Resumo do financeiro
+                       2. Contas a receber
+                       3. Contas a pagar
+                       4. Fluxo de caixa
+                       5. Sair
                     """);
                 contato.setEtapaFluxo(EtapaFluxo.MENU_PRINCIPAL.name());
             }
@@ -71,47 +73,48 @@ public class ChatLogic {
 
                 switch (msg) {
                     case "1" -> {
-                        sendMessage.sendMessage(from, """
-        RESUMO FINANCEIRO
-        
-        Escolha o período:
-        1. Últimos 7 dias
-        2. Últimos 15 dias
-        3. Últimos 30 dias
-        4. Período personalizado
-        
-        Digite o número:
-        """);
+                        sendMessage.sendMessage(from, """                                
+                        RESUMO FINANCEIRO
+
+                        Qual período você quer consultar?
+
+                            1. Últimos 7 dias
+                            2. Últimos 15 dias
+                            3. Últimos 30 dias
+                            4. Período personalizado
+
+                        Digite o número da opção.
+                        """);
                         contato.setEtapaFluxo(EtapaFluxo.RELATORIO_ESCOLHER_PERIODO.name());
                     }
 
                     case "2" -> {
                         sendMessage.sendMessage(from, """
-                CONTAS A RECEBER
+                        CONTAS A RECEBER
                 
-                1. Recebidas
-                2. Pendentes
-                """);
+                            1. Recebidas
+                            2. Pendentes
+                        """);
                         contato.setEtapaFluxo(EtapaFluxo.CONTAS_RECEBER_TIPO.name());
                     }
 
                     case "3" -> {
                         sendMessage.sendMessage(from, """
-                CONTAS A PAGAR
-                
-                1. Pagas
-                2. Pendentes
-                """);
+                        CONTAS A PAGAR
+
+                            1. Pagas
+                            2. Pendentes
+                        """);
                         contato.setEtapaFluxo(EtapaFluxo.CONTAS_PAGAR_TIPO.name());
                     }
 
                     case "4" -> {
                         sendMessage.sendMessage(from, """
-                FLUXO DE CAIXA
-                
-                1. Última semana
-                2. Último mês
-                """);
+                        FLUXO DE CAIXA
+                        
+                            1. Última semana
+                            2. Último mês
+                        """);
                         contato.setEtapaFluxo(EtapaFluxo.FLUXO_CAIXA_PERIODO.name());
                     }
 
@@ -122,14 +125,17 @@ public class ChatLogic {
 
                     // QUALQUER OUTRA MENSAGEM = VOLTA AO MENU
                     default -> sendMessage.sendMessage(from, """
-            O que você gostaria de consultar hoje?
-            
-            1. Resumo financeiro do mês
-            2. Contas a receber
-            3. Contas a pagar
-            4. Fluxo de caixa
-            5. Sair
-            """);
+                    Olá! Sou seu assistente financeiro da Easy.
+                    Estou aqui para te ajudar no que precisar.
+                    
+                    O que você quer ver agora?
+                    
+                       1. Resumo do financeiro
+                       2. Contas a receber
+                       3. Contas a pagar
+                       4. Fluxo de caixa
+                       5. Sair
+                    """);
                 }
             }
 
@@ -152,13 +158,13 @@ public class ChatLogic {
                     }
                     case "4" -> {
                         sendMessage.sendMessage(from, """
-                PERÍODO PERSONALIZADO
-                
-                Digite as datas no formato:
-                dd/mm/aaaa até dd/mm/aaaa
-                
-                Exemplo: 01/10/2025 até 31/10/2025
-                """);
+                            PERÍODO PERSONALIZADO
+                            
+                            Digite as datas no formato:
+                            dd/mm/aaaa até dd/mm/aaaa
+                            
+                            Exemplo: 01/10/2025 até 31/10/2025
+                            """);
                         contato.setEtapaFluxo(EtapaFluxo.RELATORIO_AGUARDANDO_DATAS.name());
                     }
                     default -> {
@@ -234,8 +240,8 @@ public class ChatLogic {
             %s
             Período: %s a %s
             
-            Entradas: %s
-            Saidas: %s
+            Entradas: R$ %s
+            Saidas: R$ %s
             
             Receita operacional..: R$ %s
             Custos variáveis.....: R$ %s
@@ -245,16 +251,15 @@ public class ChatLogic {
                     titulo,
                     inicio.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
                     fim.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
-                    rel.getReceitaOperacional_1_0(),
                     rel.getTotalRecebido(),
                     rel.getTotalPago(),
+                    rel.getReceitaOperacional_1_0(),
                     rel.getCustosVariaveis_2_1(),
                     rel.getDespesasFixas_3x(),
                     rel.getResultadoOperacional()
             );
 
             sendMessage.sendMessage(from, texto);
-            sendMessage.sendMessage(from, "\nDigite  coisa para voltar ao menu.");
 
         } catch (Exception e) {
             sendMessage.sendMessage(from, "Erro ao gerar relatório. Tente novamente mais tarde.");
