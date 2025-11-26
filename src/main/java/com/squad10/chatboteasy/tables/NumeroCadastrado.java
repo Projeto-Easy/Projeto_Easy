@@ -3,12 +3,13 @@ package com.squad10.chatboteasy.tables;
 import com.squad10.chatboteasy.enums.StatusNumero;
 import java.time.LocalDateTime;
 import jakarta.persistence.*;
+import lombok.Data;
 
 @Entity
 @Table(name = "numero_cadastrado", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"empresa_id", "numero"}, name = "uk_empresa_numero")
 })
-
+@Data
 public class NumeroCadastrado {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

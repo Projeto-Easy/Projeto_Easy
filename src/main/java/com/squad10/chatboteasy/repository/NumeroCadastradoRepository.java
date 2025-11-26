@@ -15,4 +15,8 @@ public interface NumeroCadastradoRepository extends JpaRepository<NumeroCadastra
     List<NumeroCadastrado> findAllByEmpresaId(Long empresaId);
 
     Optional<NumeroCadastrado> findByNumero(String numero);
+
+    boolean existsByNumero(String numero);
+
+    boolean existsByEmpresaIdAndNumero(Long empresaId, String numero);
 }

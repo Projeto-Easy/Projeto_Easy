@@ -1,7 +1,7 @@
 package com.squad10.chatboteasy.controller;
 
 import com.squad10.chatboteasy.dto.IncomingMessage;
-import com.squad10.chatboteasy.service.ChatLogic;
+import com.squad10.chatboteasy.service.MessageExtractor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,11 +11,9 @@ import org.springframework.beans.factory.annotation.Value;
 @RequestMapping("/webhook")
 public class WhatsWebhook {
 
-    private final ChatLogic chatLogic;
+    private final MessageExtractor messageExtractor;
 
-    public WhatsWebhook(ChatLogic chatLogic) {
-        this.chatLogic = chatLogic;
-    }
+    public WhatsWebhook(MessageExtractor messageExtractor) {this.messageExtractor = messageExtractor; }
 
     @Value("${meta.verify.token}")
     private String verifyToken;
@@ -36,9 +34,10 @@ public class WhatsWebhook {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
     }
 
+
     @PostMapping
     public void receiveMessage(@RequestBody IncomingMessage payload) {
-        chatLogic.processIncomingMessage(payload);
+        messageExtractor.processIncomingMessage(payload);
     }
 
 }

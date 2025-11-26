@@ -3,9 +3,11 @@ package com.squad10.chatboteasy.tables;
 import com.squad10.chatboteasy.enums.StatusEmpresa;
 import java.time.LocalDateTime;
 import jakarta.persistence.*;
+import lombok.Data;
 
 @Entity
 @Table(name = "empresa")
+@Data
 public class Empresa {
 
     @Id
