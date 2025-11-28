@@ -13,7 +13,7 @@ public class MessageExtractor {
         this.chatLogic = chatLogic;
     }
 
-    public void processIncomingMessage(IncomingMessage payload) {
+    public void processIncomingMessage(IncomingMessage payload) throws InterruptedException {
 
                 if (payload == null || payload.getEntry() == null) return;
 
@@ -32,7 +32,7 @@ public class MessageExtractor {
                         System.out.printf("\nMensagem de %s \nConteudo: %s \n", from, conteudo);
 
                         if (tipo.equals("text")) {
-                            conteudo = msg.getText().getBody();
+                            conteudo = msg.getText().getBody().trim();
                         }
 
                         chatLogic.chatFlux(from, conteudo, tipo);
