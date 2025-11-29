@@ -5,11 +5,14 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
 public class SendMessage {
+    private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${whats.api.token}")
     String apiToken;
@@ -17,9 +20,8 @@ public class SendMessage {
     @Value("${whats.phone.number.id}")
     String phoneId;
 
-    private final RestTemplate restTemplate = new RestTemplate();
-
     public void sendMessage(String to, String text) {
+
         String url = "https://graph.facebook.com/v22.0/" + phoneId + "/messages";
 
         HttpHeaders headers = new HttpHeaders();
@@ -44,5 +46,192 @@ public class SendMessage {
             System.out.println("Erro ao enviar mensagem: " + e);
         }
 
+    }
+
+    public void sendInteractiveMenuPrincipal(String to){
+
+        String url = "https://graph.facebook.com/v22.0/" + phoneId + "/messages";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(apiToken);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> payload = new HashMap<>();
+
+        payload.put("messaging_product", "whatsapp");
+        payload.put("recipient_type", "individual");
+        payload.put("to", to);
+        payload.put("type", "interactive");
+
+        // interactive root
+        Map<String, Object> interactiveObj = new HashMap<>();
+        interactiveObj.put("type", "list");
+
+        // header
+        Map<String, Object> headerObj = new HashMap<>();
+        headerObj.put("type", "text");
+        headerObj.put("text", "EasyBOT");
+
+        // body
+        Map<String, Object> bodyObj = new HashMap<>();
+        bodyObj.put("text", "Olá sou o assistente da Easy financeira Como eu posso te ajudar hoje ?");
+
+        // footer
+        Map<String, Object> footerObj = new HashMap<>();
+        footerObj.put("text", "Pressione o menu abaixo ou escreva o número correspondente.");
+
+        // action
+        Map<String, Object> actionObj = new HashMap<>();
+        actionObj.put("button", "Menu");
+
+        // rows
+        List<Map<String, Object>> rows = new ArrayList<>();
+
+        rows.add(Map.of(
+                "id", "1",
+                "title", "1. Resumo do financeiro",
+                "description", "solicite seu resumo financeiro"
+        ));
+        rows.add(Map.of(
+                "id", "2",
+                "title", "2. Contas a receber",
+                "description", "lista de contas a serem recebidas"
+        ));
+        rows.add(Map.of(
+                "id", "3",
+                "title", "3. Contas a pagar",
+                "description", "lista de contas a serem pagas"
+        ));
+        rows.add(Map.of(
+                "id", "4",
+                "title", "4. Fluxo de caixa",
+                "description", "Fluxo de caixa"
+        ));
+        rows.add(Map.of(
+                "id", "5",
+                "title", "5. Sair",
+                "description", "Encerra a conversa"
+        ));
+
+        // section
+        Map<String, Object> section = new HashMap<>();
+        section.put("title", "Menu de opções Easy");
+        section.put("rows", rows);
+
+        List<Map<String, Object>> sections = new ArrayList<>();
+        sections.add(section);
+
+        actionObj.put("sections", sections);
+
+        // mount interactive object
+        interactiveObj.put("header", headerObj);
+        interactiveObj.put("body", bodyObj);
+        interactiveObj.put("footer", footerObj);
+        interactiveObj.put("action", actionObj);
+
+        payload.put("interactive", interactiveObj);
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+            System.out.printf("Resposta enviada para : %s\n", to);
+        } catch (Exception e) {
+            System.out.println("Erro ao enviar mensagem: " + e);
+        }
+
+    }
+
+    public void sendInteractiveResumoFinanceiro(String to){
+
+        String url = "https://graph.facebook.com/v22.0/" + phoneId + "/messages";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(apiToken);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> payload = new HashMap<>();
+
+        payload.put("messaging_product", "whatsapp");
+        payload.put("recipient_type", "individual");
+        payload.put("to", to);
+        payload.put("type", "interactive");
+
+        // interactive root
+        Map<String, Object> interactiveObj = new HashMap<>();
+        interactiveObj.put("type", "list");
+
+        // header
+        Map<String, Object> headerObj = new HashMap<>();
+        headerObj.put("type", "text");
+        headerObj.put("text", "EasyBOT: Resumo financeiro");
+
+        // body
+        Map<String, Object> bodyObj = new HashMap<>();
+        bodyObj.put("text", "Escolha o periodo que deseja consultar");
+
+        // footer
+        Map<String, Object> footerObj = new HashMap<>();
+        footerObj.put("text", "");
+
+        // action
+        Map<String, Object> actionObj = new HashMap<>();
+        actionObj.put("button", "Periodos");
+
+        // rows
+        List<Map<String, Object>> rows = new ArrayList<>();
+
+        rows.add(Map.of(
+                "id", "1",
+                "title", "1. Últimos 7 dias"
+        ));
+        rows.add(Map.of(
+                "id", "2",
+                "title", "2. Últimos 15 dias"
+        ));
+        rows.add(Map.of(
+                "id", "3",
+                "title", "3. Últimos 30 dias"
+        ));
+        rows.add(Map.of(
+                "id", "4",
+                "title", "4. Período personalizado"
+        ));
+
+        // section
+        Map<String, Object> section = new HashMap<>();
+        section.put("title", "Resumo financeiro");
+        section.put("rows", rows);
+
+        List<Map<String, Object>> sections = new ArrayList<>();
+        sections.add(section);
+
+        actionObj.put("sections", sections);
+
+        // mount interactive object
+        interactiveObj.put("header", headerObj);
+        interactiveObj.put("body", bodyObj);
+        interactiveObj.put("footer", footerObj);
+        interactiveObj.put("action", actionObj);
+
+        payload.put("interactive", interactiveObj);
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+            System.out.printf("Resposta enviada para : %s\n", to);
+        } catch (Exception e) {
+            System.out.println("Erro ao enviar mensagem: " + e);
+        }
+
+    }
+
+    public void sendRepetirQuestion(String to){
+        sendMessage(to, "Deseja realizar outra consulta ? sim ou não");
+    }
+
+    public void sendAgradecerContato(String to){
+        sendMessage(to, "Até logo!");
     }
 }
