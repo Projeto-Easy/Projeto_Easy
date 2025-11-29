@@ -62,12 +62,21 @@ public class IncomingMessage {
         private long timestamp;
         private String type;
         private Text text;
-
-        // Possivelmente adicionar outros tipos
+        private Interactive interactive;
     }
 
     @Data
     public static class Text {
         private String body;
+    }
+
+    @Data
+    public static class Interactive {
+        private ListReply list_reply;
+    }
+
+    @Data
+    public static class ListReply {
+        private String id;
     }
 }

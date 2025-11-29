@@ -13,9 +13,9 @@ public class MessageExtractor {
         this.chatLogic = chatLogic;
     }
 
-    public void processIncomingMessage(IncomingMessage payload) {
+    public void processIncomingMessage(IncomingMessage payload) throws InterruptedException {
 
-                if (payload == null || payload.getEntry() == null) return;
+            if (payload == null || payload.getEntry() == null) return;
 
             for (var entry : payload.getEntry()) {
                 if (entry.getChanges() == null) continue;
@@ -29,12 +29,17 @@ public class MessageExtractor {
                         var tipo = msg.getType();
                         var conteudo = tipo;
 
-                        System.out.printf("\nMensagem de %s \nConteudo: %s \n", from, conteudo);
+                        System.out.printf("\nMensagem de %s \nTipo: %s \n", from, tipo);
 
                         if (tipo.equals("text")) {
-                            conteudo = msg.getText().getBody();
+                            conteudo = msg.getText().getBody().trim();
                         }
 
+                        if (tipo.equals("interactive")){
+                            conteudo = msg.getInteractive().getList_reply().getId();
+                        }
+
+                        System.out.printf("Conteudo: %s \n", conteudo);
                         chatLogic.chatFlux(from, conteudo, tipo);
 
                     }

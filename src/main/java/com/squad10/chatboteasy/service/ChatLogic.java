@@ -2,14 +2,20 @@ package com.squad10.chatboteasy.service;
 
 import com.squad10.chatboteasy.dto.report.WeeklyReportDTO;
 import com.squad10.chatboteasy.enums.EtapaFluxo;
+import com.squad10.chatboteasy.model.MovimentoEnriquecido;
 import com.squad10.chatboteasy.repository.NumeroCadastradoRepository;
+import com.squad10.chatboteasy.tables.Empresa;
 import com.squad10.chatboteasy.tables.NumeroCadastrado;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
 
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 
 @Service
@@ -20,10 +26,11 @@ public class ChatLogic {
     private final NumeroCadastradoRepository numRepo;
     private final OmieDataService omieDataService;
 
+    @SneakyThrows
     public void chatFlux(String from, String mensagem, String tipo) {
 
 
-        // 1. Verifica se o número está cadastrado
+        // 1. Verifier se o número está cadastrado
         if (!numRepo.existsByNumero(from)) {
             sendMessage.sendMessage(from, "Número não cadastrado no sistema.");
             return;
@@ -32,7 +39,7 @@ public class ChatLogic {
         NumeroCadastrado contato = numRepo.findByNumero(from).get();
 
         // 2. Se não for mensagem de texto responde e NÃO muda a etapa
-        if (!"text".equalsIgnoreCase(tipo)) {
+        if (!"text".equalsIgnoreCase(tipo) && !"interactive".equalsIgnoreCase(tipo)) {
             sendMessage.sendMessage(from, "Desculpe, só aceito mensagens de texto por enquanto.");
             return;
         }
@@ -41,50 +48,25 @@ public class ChatLogic {
         if (
                 contato.getEtapaFluxo() == null
                 || contato.getEtapaFluxo().isBlank()
-                || (contato.getUltimoContato() != null
-                && contato.getUltimoContato().isBefore(LocalDateTime.now().minusMinutes(5)))) {
-
+                || (contato.getUltimoContato() != null && contato.getUltimoContato().isBefore(LocalDateTime.now().minusMinutes(5)))
+        ) {
             contato.setEtapaFluxo(EtapaFluxo.INICIO.name());
         }
 
         contato.setUltimoContato(LocalDateTime.now());
 
-        // 4. Fluxo principal (só entra aqui se for texto!)
+        // 4. Fluxo principal
         switch (EtapaFluxo.valueOf(contato.getEtapaFluxo())) {
 
             case INICIO -> {
-                sendMessage.sendMessage(from, """
-                    Olá! Sou seu assistente financeiro da Easy.
-                    Estou aqui para te ajudar no que precisar.
-                    
-                    O que você quer ver agora?
-                    
-                       1. Resumo do financeiro
-                       2. Contas a receber
-                       3. Contas a pagar
-                       4. Fluxo de caixa
-                       5. Sair
-                    """);
+                sendMessage.sendInteractiveMenuPrincipal(from);
                 contato.setEtapaFluxo(EtapaFluxo.MENU_PRINCIPAL.name());
             }
 
             case MENU_PRINCIPAL -> {
-                String msg = mensagem.trim().toLowerCase();
-
-                switch (msg) {
+                switch (mensagem) {
                     case "1" -> {
-                        sendMessage.sendMessage(from, """                                
-                        RESUMO FINANCEIRO
-
-                        Qual período você quer consultar?
-
-                            1. Últimos 7 dias
-                            2. Últimos 15 dias
-                            3. Últimos 30 dias
-                            4. Período personalizado
-
-                        Digite o número da opção.
-                        """);
+                        sendMessage.sendInteractiveResumoFinanceiro(from);
                         contato.setEtapaFluxo(EtapaFluxo.RELATORIO_ESCOLHER_PERIODO.name());
                     }
 
@@ -123,24 +105,14 @@ public class ChatLogic {
                         contato.setEtapaFluxo(EtapaFluxo.INICIO.name());
                     }
 
-                    // QUALQUER OUTRA MENSAGEM = VOLTA AO MENU
                     default -> sendMessage.sendMessage(from, """
-                    Olá! Sou seu assistente financeiro da Easy.
-                    Estou aqui para te ajudar no que precisar.
-                    
-                    O que você quer ver agora?
-                    
-                       1. Resumo do financeiro
-                       2. Contas a receber
-                       3. Contas a pagar
-                       4. Fluxo de caixa
-                       5. Sair
+                    Escolha uma opção do menu ou envie o número correspondente.
                     """);
                 }
             }
 
             case RELATORIO_ESCOLHER_PERIODO -> {
-                switch (mensagem.trim()) {
+                switch (mensagem) {
                     case "1" -> {
                         LocalDate fim = LocalDate.now();
                         LocalDate inicio = fim.minusDays(7);
@@ -168,7 +140,7 @@ public class ChatLogic {
                         contato.setEtapaFluxo(EtapaFluxo.RELATORIO_AGUARDANDO_DATAS.name());
                     }
                     default -> {
-                        sendMessage.sendMessage(from, "Opção inválida.");
+                        sendMessage.sendMessage(from, "Escolha uma opção do menu ou envie o número correspondente");
                     }
                 }
             }
@@ -196,30 +168,169 @@ public class ChatLogic {
 
                 } catch (Exception e) {
                     sendMessage.sendMessage(from, """
-            Formato inválido!
-            
-            Use: dd/mm/aaaa até dd/mm/aaaa
-            Exemplo: 01/10/2025 até 15/10/2025
-            
-            Tente novamente:
-            """);
+                    Formato inválido!
+                    
+                    Use: dd/mm/aaaa até dd/mm/aaaa
+                    Exemplo: 01/10/2025 até 15/10/2025
+                    
+                    Tente novamente:
+                    """);
                 }
             }
 
             case CONTAS_RECEBER_TIPO -> {
+                Empresa empresa = contato.getEmpresa();
+                String appKey = empresa.getOmieAppKey();
+                String appSecret = empresa.getOmieAppSecret();
+
+                LocalDate fim = LocalDate.now();
+                LocalDate inicio = fim.minusDays(90); // últimos 90 dias é um bom padrão
+
+                List<MovimentoEnriquecido> contas;
+
                 if ("1".equals(mensagem.trim())) {
-                    sendMessage.sendMessage(from, "Aqui estão as contas a receber já pagas...\n(ainda não implementado)");
-                    sendMessage.sendMessage(from, "\nDigite qualquer coisa para voltar.");
-                    contato.setEtapaFluxo(EtapaFluxo.MENU_PRINCIPAL.name());
+                    contas = omieDataService.buscarContasAReceber(appKey, appSecret, inicio, fim, true);
+                    sendMessage.sendMessage(from, """
+                CONTAS A RECEBER - JÁ RECEBIDAS
+                Período: %s a %s
+                Total encontrado: %d
+                """.formatted(inicio.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                            fim.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), contas.size()));
                 } else if ("2".equals(mensagem.trim())) {
-                    sendMessage.sendMessage(from, "Aqui estão as contas a receber pendentes...\n(ainda não implementado)");
-                    sendMessage.sendMessage(from, "\nDigite qualquer coisa para voltar.");
-                    contato.setEtapaFluxo(EtapaFluxo.MENU_PRINCIPAL.name());
+                    contas = omieDataService.buscarContasAReceber(appKey, appSecret, inicio, fim, false);
+                    sendMessage.sendMessage(from, """
+                CONTAS A RECEBER - PENDENTES
+                Período: %s a %s
+                Total encontrado: %d
+                """.formatted(inicio.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                            fim.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), contas.size()));
                 } else {
                     sendMessage.sendMessage(from, "Por favor, digite 1 ou 2.");
+                    return;
                 }
+
+                if (contas.isEmpty()) {
+                    sendMessage.sendMessage(from, "Nenhuma conta encontrada nesse critério.");
+                } else {
+                    StringBuilder sb = new StringBuilder();
+                    int limite = Math.min(contas.size(), 15);
+                    for (int i = 0; i < limite; i++) {
+                        var m = contas.get(i);
+                        String status = OmieDataService.isPagoOuRecebido(m.getStatus()) ? "✔" : "⏳";
+                        sb.append(String.format("%s %s - R$ %s - %s%n",
+                                m.getDataPagamento().format(DateTimeFormatter.ofPattern("dd/MM")),
+                                status,
+                                omieDataService.formatoMoeda(m.getValor()),
+                                m.getDescCategoria() != null ? m.getDescCategoria().trim() : "Sem descrição"));
+                    }
+                    if (contas.size() > limite) {
+                        sb.append(String.format("%n... e mais %d registros", contas.size() - limite));
+                    }
+                    sendMessage.sendMessage(from, sb.toString());
+                }
+
+                sendMessage.sendRepetirQuestion(from);
+                contato.setEtapaFluxo(EtapaFluxo.REPETIR.name());
             }
 
+            case CONTAS_PAGAR_TIPO -> {
+                Empresa empresa = contato.getEmpresa();
+                String appKey = empresa.getOmieAppKey();
+                String appSecret = empresa.getOmieAppSecret();
+
+                LocalDate fim = LocalDate.now();
+                LocalDate inicio = fim.minusDays(90);
+
+                List<MovimentoEnriquecido> contas;
+
+                if ("1".equals(mensagem.trim())) {
+                    contas = omieDataService.buscarContasAPagar(appKey, appSecret, inicio, fim, true);
+                    sendMessage.sendMessage(from, """
+                CONTAS A PAGAR - JÁ PAGAS
+                Período: %s a %s
+                Total: %d
+                """.formatted(inicio.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                            fim.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), contas.size()));
+                }
+                else if ("2".equals(mensagem.trim())) {
+                    contas = omieDataService.buscarContasAPagar(appKey, appSecret, inicio, fim, false);
+                    sendMessage.sendMessage(from, """
+                CONTAS A PAGAR - PENDENTES
+                Período: %s a %s
+                Total: %d
+                """.formatted(inicio.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                            fim.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), contas.size()));
+                }
+                else {
+                    sendMessage.sendMessage(from, "Por favor, digite 1 ou 2.");
+                    return;
+                }
+
+                // mesmo padrão de exibição das contas a receber
+                if (contas.isEmpty()) {
+                    sendMessage.sendMessage(from, "Nenhuma conta encontrada.");
+                }
+                else {
+                    StringBuilder sb = new StringBuilder();
+                    int limite = Math.min(contas.size(), 15);
+                    for (int i = 0; i < limite; i++) {
+                        var m = contas.get(i);
+                        String status = OmieDataService.isPagoOuRecebido(m.getStatus()) ? "✔" : "⏳";
+                        sb.append(String.format("%s %s - R$ %s - %s%n",
+                                m.getDataPagamento().format(DateTimeFormatter.ofPattern("dd/MM")),
+                                status,
+                                omieDataService.formatoMoeda(m.getValor()),
+                                m.getDescCategoria() != null ? m.getDescCategoria().trim() : "Sem descrição"));
+                    }
+                    if (contas.size() > limite) sb.append("\n... e mais ").append(contas.size() - limite);
+                    sendMessage.sendMessage(from, sb.toString());
+                }
+
+                sendMessage.sendRepetirQuestion(from);
+                contato.setEtapaFluxo(EtapaFluxo.REPETIR.name());
+            }
+
+            case FLUXO_CAIXA_PERIODO -> {
+                Empresa empresa = contato.getEmpresa();
+                LocalDate inicio, fim = LocalDate.now();;
+
+                if ("1".equals(mensagem.trim())) {
+                    inicio = fim.minusDays(7);
+                } else if ("2".equals(mensagem.trim())) {
+                    inicio = fim.minusMonths(1).withDayOfMonth(1);
+                } else {
+                    sendMessage.sendMessage(from, "Opção inválida.");
+                    return;
+                }
+
+                String resposta = "Fluxo de caixa";
+
+                var linhas = omieDataService.gerarFluxoDeCaixaTexto(
+                        empresa.getOmieAppKey(),
+                        empresa.getOmieAppSecret(),
+                        inicio, fim);
+
+                for (String linha : linhas) {
+                    resposta = resposta.concat("\n" + linha);
+                }
+
+                sendMessage.sendMessage(from, resposta);
+
+                sendMessage.sendRepetirQuestion(from);
+                contato.setEtapaFluxo(EtapaFluxo.REPETIR.name());
+            }
+
+            case REPETIR -> {
+                if("sim".equalsIgnoreCase(mensagem.trim())){
+                    sendMessage.sendInteractiveMenuPrincipal(from);
+                    contato.setEtapaFluxo(EtapaFluxo.MENU_PRINCIPAL.name());
+                } else if("não".equalsIgnoreCase(mensagem.trim()) || "nao".equalsIgnoreCase(mensagem.trim())){
+                    sendMessage.sendAgradecerContato(from);
+                    contato.setEtapaFluxo(EtapaFluxo.INICIO.name());
+                } else{
+                    sendMessage.sendMessage(from, "Opção invalida, digite sim ou não");
+                }
+            }
 
             default -> {
                 sendMessage.sendMessage(from, "Erro no fluxo. Reiniciando...");
@@ -236,30 +347,56 @@ public class ChatLogic {
                     contato, inicio, fim, true
             );
 
+            // Formatação dos valores para garantir o padrão R$ X.XXX,XX
+            DecimalFormat df = new DecimalFormat("R$ #,##0.00");
+            df.setRoundingMode(RoundingMode.HALF_UP);
+
             String texto = """
-            %s
-            Período: %s a %s
-            
-            Entradas: R$ %s
-            Saidas: R$ %s
-            
-            Receita operacional..: R$ %s
-            Custos variáveis.....: R$ %s
-            Despesas fixas.......: R$ %s
-            Resultado operacional: R$ %s
-            """.formatted(
+        📈 *%s*
+        
+        🗓️ *Período:* %s a %s
+        
+        ~⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯~
+        
+        💰 *BALANÇO DE CAIXA*
+        * Entradas: %s
+        * Saídas: %s
+        
+        ~⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯~
+        
+        📊 *DEMONSTRAÇÃO DE RESULTADOS*
+        * Receita Operacional: %s
+        * Custos Variáveis: %s
+        * Despesas Fixas: %s
+        
+        ~⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯~
+        
+        ⭐ *RESULTADO FINAL*
+        * *Resultado Operacional:* *%s*
+        """.formatted(
+                    // 1. Título (passado como argumento, ex: "ÚLTIMOS 7 DIAS")
                     titulo,
+                    // 2. Data de Início
                     inicio.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                    // 3. Data de Fim
                     fim.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
-                    rel.getTotalRecebido(),
-                    rel.getTotalPago(),
-                    rel.getReceitaOperacional_1_0(),
-                    rel.getCustosVariaveis_2_1(),
-                    rel.getDespesasFixas_3x(),
-                    rel.getResultadoOperacional()
+                    // 4. Entradas (Total Recebido)
+                    df.format(rel.getTotalRecebido()),
+                    // 5. Saídas (Total Pago)
+                    df.format(rel.getTotalPago()),
+                    // 6. Receita Operacional
+                    df.format(rel.getReceitaOperacional_1_0()),
+                    // 7. Custos Variáveis
+                    df.format(rel.getCustosVariaveis_2_1()),
+                    // 8. Despesas Fixas
+                    df.format(rel.getDespesasFixas_3x()),
+                    // 9. Resultado Operacional (Destaque máximo)
+                    df.format(rel.getResultadoOperacional())
             );
 
             sendMessage.sendMessage(from, texto);
+            sendMessage.sendRepetirQuestion(from);
+            contato.setEtapaFluxo(EtapaFluxo.REPETIR.name());
 
         } catch (Exception e) {
             sendMessage.sendMessage(from, "Erro ao gerar relatório. Tente novamente mais tarde.");

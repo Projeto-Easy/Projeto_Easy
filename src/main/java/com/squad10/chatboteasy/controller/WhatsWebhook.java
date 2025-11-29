@@ -36,7 +36,7 @@ public class WhatsWebhook {
 
 
     @PostMapping
-    public void receiveMessage(@RequestBody IncomingMessage payload) {
+    public void receiveMessage(@RequestBody IncomingMessage payload) throws InterruptedException {
         messageExtractor.processIncomingMessage(payload);
     }
 

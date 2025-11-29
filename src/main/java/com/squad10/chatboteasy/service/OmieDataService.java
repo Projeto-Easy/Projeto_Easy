@@ -12,10 +12,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -121,7 +118,7 @@ public class OmieDataService {
         return null;
     }
 
-    private static boolean isPagoOuRecebido(String s) {
+    public static boolean isPagoOuRecebido(String s) {
         if (s == null) return false;
         String x = s.trim().toUpperCase();
         return x.equals("PAGO") || x.equals("RECEBIDO")
@@ -210,4 +207,76 @@ public com.squad10.chatboteasy.dto.report.WeeklyReportDTO gerarRelatorio(
                 dataFim,
                 detalhado
         );
-}}
+}
+    // ======== NOVOS MÉTODOS PARA CONTAS A RECEBER/PAGAR ========
+    public List<MovimentoEnriquecido> buscarContasAReceber(String appKey, String appSecret,
+                                                           LocalDate inicio, LocalDate fim,
+                                                           boolean apenasPagas) {
+        var todos = buscarMovimentosEnriquecidos(appKey, appSecret, inicio, fim, false); // traz tudo
+
+        return todos.stream()
+                .filter(m -> "CONTA_A_RECEBER".equalsIgnoreCase(m.getGrupo()))
+                .filter(m -> !apenasPagas || isPagoOuRecebido(m.getStatus())) // se apenasPagas=true → só pagas
+                .filter(m -> apenasPagas || !isPagoOuRecebido(m.getStatus())) // se apenasPagas=false → só pendentes
+                .sorted((a, b) -> b.getDataPagamento().compareTo(a.getDataPagamento())) // mais recente primeiro
+                .toList();
+    }
+
+    public List<MovimentoEnriquecido> buscarContasAPagar(String appKey, String appSecret,
+                                                         LocalDate inicio, LocalDate fim,
+                                                         boolean apenasPagas) {
+        var todos = buscarMovimentosEnriquecidos(appKey, appSecret, inicio, fim, false);
+
+        return todos.stream()
+                .filter(m -> "CONTA_A_PAGAR".equalsIgnoreCase(m.getGrupo()))
+                .filter(m -> !apenasPagas || isPagoOuRecebido(m.getStatus()))
+                .filter(m -> apenasPagas || !isPagoOuRecebido(m.getStatus()))
+                .sorted((a, b) -> b.getDataPagamento().compareTo(a.getDataPagamento()))
+                .toList();
+    }
+
+    // ======== FLUXO DE CAIXA SIMPLES (SALDO DIA A DIA) ========
+    public List<String> gerarFluxoDeCaixaTexto(String appKey, String appSecret,
+                                               LocalDate inicio, LocalDate fim) {
+        var movimentos = buscarMovimentosEnriquecidos(appKey, appSecret, inicio, fim, true); // só pagos/recebidos
+
+        Map<LocalDate, BigDecimal> saldoPorDia = movimentos.stream()
+                .collect(Collectors.groupingBy(
+                        MovimentoEnriquecido::getDataPagamento,
+                        Collectors.reducing(BigDecimal.ZERO,
+                                m -> "CONTA_A_RECEBER".equalsIgnoreCase(m.getGrupo()) ? m.getValor() : m.getValor().negate(),
+                                BigDecimal::add)
+                ));
+
+        BigDecimal saldoAcumulado = BigDecimal.ZERO;
+        List<String> linhas = new ArrayList<>();
+        linhas.add("FLUXO DE CAIXA");
+        linhas.add("Período: " + inicio.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) +
+                " a " + fim.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+        linhas.add("══════════════════");
+
+        for (LocalDate dia = inicio; !dia.isAfter(fim); dia = dia.plusDays(1)) {
+            BigDecimal movimentoDoDia = saldoPorDia.getOrDefault(dia, BigDecimal.ZERO);
+            saldoAcumulado = saldoAcumulado.add(movimentoDoDia);
+
+            String linha = String.format("%s → %s %8s   (saldo: %s)",
+                    dia.format(DateTimeFormatter.ofPattern("dd/MM")),
+                    movimentoDoDia.compareTo(BigDecimal.ZERO) >= 0 ? "+" : "-",
+                    formatoMoeda(movimentoDoDia.abs()),
+                    formatoMoeda(saldoAcumulado));
+
+            linhas.add(linha);
+        }
+
+        linhas.add("══════════════════");
+        linhas.add("SALDO FINAL: " + formatoMoeda(saldoAcumulado));
+
+        return linhas;
+    }
+
+    public String formatoMoeda(BigDecimal valor) {
+        if (valor == null) return "R$ 0,00";
+        return "R$ " + String.format("%,.2f", valor).replace(",", "X")
+                .replace(".", ",").replace("X", ".");
+    }
+}
