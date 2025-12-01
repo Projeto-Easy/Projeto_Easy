@@ -1,5 +1,5 @@
 package com.squad10.chatboteasy.service;
-
+import com.squad10.chatboteasy.dev.MessageSender;
 import com.squad10.chatboteasy.dto.report.WeeklyReportDTO;
 import com.squad10.chatboteasy.enums.EtapaFluxo;
 import com.squad10.chatboteasy.model.MovimentoEnriquecido;
@@ -16,15 +16,20 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+
+
 
 
 @Service
 @RequiredArgsConstructor
 public class ChatLogic {
 
-    private final SendMessage sendMessage;
+    private final MessageSender sendMessage;
     private final NumeroCadastradoRepository numRepo;
     private final OmieDataService omieDataService;
+    private final PdfReportService pdfReportService;
+    private static final ConcurrentHashMap<String, Boolean> PDF_MODE = new ConcurrentHashMap<>();
 
     @SneakyThrows
     public void chatFlux(String from, String mensagem, String tipo) {
@@ -99,19 +104,62 @@ public class ChatLogic {
                         """);
                         contato.setEtapaFluxo(EtapaFluxo.FLUXO_CAIXA_PERIODO.name());
                     }
-
-                    case "5", "sair", "tchau" -> {
+                    case "5" -> {
+                        PDF_MODE.put(from, true);
+                        sendMessage.sendInteractivePdfPeriodo(from);
+                        contato.setEtapaFluxo(EtapaFluxo.RELATORIO_ESCOLHER_PERIODO.name());
+                    }
+                    case "6", "sair", "tchau" -> {
                         sendMessage.sendMessage(from, "Até logo!");
                         contato.setEtapaFluxo(EtapaFluxo.INICIO.name());
                     }
-
-                    default -> sendMessage.sendMessage(from, """
-                    Escolha uma opção do menu ou envie o número correspondente.
-                    """);
+                        default -> sendMessage.sendMessage(from, """
+                        Escolha uma opção do menu ou envie o número correspondente.
+                        """);
                 }
             }
-
             case RELATORIO_ESCOLHER_PERIODO -> {
+                if (Boolean.TRUE.equals(PDF_MODE.get(from))) {
+                switch (mensagem.trim()) {
+
+                case "1" -> {
+                    try {
+                    LocalDate fim = LocalDate.now();
+                    LocalDate inicio = fim.minusDays(7);
+
+                    WeeklyReportDTO rel = omieDataService.gerarRelatorioPorContato(contato, inicio, fim, true);
+                    byte[] pdf = pdfReportService.gerarResumoFinanceiroPdf(
+                            contato.getEmpresa().getNome(),
+                            inicio, fim, rel
+                    );
+                    sendMessage.sendPdf(from, "resumo-financeiro-ultimos-7-dias.pdf", pdf);
+                    sendMessage.sendRepetirQuestion(from);
+                    contato.setEtapaFluxo(EtapaFluxo.REPETIR.name());
+                    PDF_MODE.remove(from);
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    sendMessage.sendMessage(from, "Erro ao gerar PDF: " + e.getMessage());
+                    sendMessage.sendInteractiveMenuPrincipal(from);
+                    contato.setEtapaFluxo(EtapaFluxo.MENU_PRINCIPAL.name());
+                    PDF_MODE.remove(from);
+                }
+            }
+                case "2" -> {
+                sendMessage.sendMessage(from, """
+                PERÍODO PERSONALIZADO
+                
+                Digite as datas no formato:
+                dd/MM/aaaa até dd/MM/aaaa
+                
+                Exemplo: 01/10/2025 até 31/10/2025
+                """);
+                contato.setEtapaFluxo(EtapaFluxo.RELATORIO_AGUARDANDO_DATAS.name());
+            }
+            default -> sendMessage.sendInteractivePdfPeriodo(from);
+        }
+            break;
+    }
                 switch (mensagem) {
                     case "1" -> {
                         LocalDate fim = LocalDate.now();
@@ -163,7 +211,35 @@ public class ChatLogic {
                         sendMessage.sendMessage(from, "Data inicial maior que a final. Tente novamente.");
                         return;
                     }
+                    if (Boolean.TRUE.equals(PDF_MODE.get(from))) {
+                    try {
+                        WeeklyReportDTO rel = omieDataService.gerarRelatorioPorContato(contato, inicio, fim, true);
+                        byte[] pdf = pdfReportService.gerarResumoFinanceiroPdf(
+                                contato.getEmpresa().getNome(),
+                                inicio, fim, rel
+                        );
 
+                        String nomeArquivo = "resumo-financeiro-" +
+                                inicio.format(DateTimeFormatter.ofPattern("yyyyMMdd")) +
+                                "-" +
+                                fim.format(DateTimeFormatter.ofPattern("yyyyMMdd")) +
+                                ".pdf";
+
+                        sendMessage.sendPdf(from, nomeArquivo, pdf);
+                        sendMessage.sendRepetirQuestion(from);
+                        contato.setEtapaFluxo(EtapaFluxo.REPETIR.name());
+                        PDF_MODE.remove(from);
+                        break;
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        sendMessage.sendMessage(from, "Erro ao gerar PDF: " + e.getMessage());
+                        sendMessage.sendInteractiveMenuPrincipal(from);
+                        contato.setEtapaFluxo(EtapaFluxo.MENU_PRINCIPAL.name());
+                        PDF_MODE.remove(from);
+                        break;
+                    }
+                }
                     enviarRelatorio(contato, from, inicio, fim, "PERÍODO PERSONALIZADO");
 
                 } catch (Exception e) {
@@ -399,7 +475,8 @@ public class ChatLogic {
             contato.setEtapaFluxo(EtapaFluxo.REPETIR.name());
 
         } catch (Exception e) {
-            sendMessage.sendMessage(from, "Erro ao gerar relatório. Tente novamente mais tarde.");
+            e.printStackTrace();
+            sendMessage.sendMessage(from, "Erro ao gerar relatório: " + e.getMessage());
         }
     }
 }

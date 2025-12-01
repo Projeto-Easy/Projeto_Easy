@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 12px; }
+    h1 { font-size: 18px; margin: 0 0 6px 0; }
+    .muted { color: #666; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-top: 12px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 6px; }
+    th { background: #f4f4f4; text-align: left; }
+  </style>
+</head>
+<body>
+  <h1 th:text="${title}">Relatório</h1>
+  <div class="muted">
+    Empresa: <span th:text="${empresaNome}">---</span><br/>
+    Período: <span th:text="${periodo}">---</span>
+  </div>
+
+  <div class="card">
+    <b>Balanço de Caixa</b><br/>
+    Entradas: <span th:text="${totalRecebido}">R$ 0,00</span><br/>
+    Saídas: <span th:text="${totalPago}">R$ 0,00</span><br/>
+    Resultado: <span th:text="${resultado}">R$ 0,00</span>
+  </div>
+
+  <div class="card">
+    <b>Resumo</b>
+    <table>
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Status</th>
+          <th>Categoria</th>
+          <th>Valor</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="row : ${linhas}">
+          <td th:text="${row.data}">01/10</td>
+          <td th:text="${row.status}">✔</td>
+          <td th:text="${row.categoria}">...</td>
+          <td th:text="${row.valor}">R$ 0,00</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

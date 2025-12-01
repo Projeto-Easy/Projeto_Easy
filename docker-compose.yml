@@ -1,0 +1,16 @@
+services:
+  mariadb:
+    image: mariadb:11
+    container_name: chatboteasy-mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: chatboteasy
+      MARIADB_USER: chat
+      MARIADB_PASSWORD: chat
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+volumes:
+  mariadb_data:

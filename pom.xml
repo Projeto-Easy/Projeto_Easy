@@ -31,6 +31,29 @@
 	</properties>
     <dependencies>
 
+    	<dependency>
+    		<groupId>org.springframework.boot</groupId>
+    		<artifactId>spring-boot-starter-actuator</artifactId>
+    	</dependency>
+
+			<dependency>
+  			<groupId>com.openhtmltopdf</groupId>
+ 				<artifactId>openhtmltopdf-pdfbox</artifactId>
+  			<version>1.0.10</version>
+			</dependency>
+			
+			<dependency>
+ 			 	<groupId>com.openhtmltopdf</groupId>
+  		 	<artifactId>openhtmltopdf-slf4j</artifactId>
+  			<version>1.0.10</version>
+			</dependency>
+
+<!-- template engine (escolha 1) -->
+			<dependency>
+			  <groupId>org.springframework.boot</groupId>
+ 				<artifactId>spring-boot-starter-thymeleaf</artifactId>
+			</dependency>
+
         <!-- ESSA É A PRINCIPAL - não pode faltar! -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -42,6 +65,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
+
+				<dependency>
+  				<groupId>org.mariadb.jdbc</groupId>
+  				<artifactId>mariadb-java-client</artifactId>
+				</dependency>
+
 
         <!-- VALIDAÇÃO (A QUE TAVA FALTANDO!) -->
         <dependency>
